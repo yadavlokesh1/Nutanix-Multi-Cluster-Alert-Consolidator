@@ -19,7 +19,7 @@ Reads health data from multiple Nutanix clusters and generates one HTML report w
 
 Open the report, 30 seconds, you know exactly what needs action today.
 
-![Report Output](docs/sample-report.png)
+![Report Output](sample-report.png)
 
 ---
 
