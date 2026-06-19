@@ -1,114 +1,87 @@
-# Nutanix-Prism-Report
-
 # Nutanix Multi-Cluster Alert Consolidator
 
-> Built to eliminate the manual morning health-check that every Nutanix L1 team does by logging into Prism one cluster at a time.
+If you manage Nutanix clusters, you know the drill — every morning someone has to log into Prism, check each cluster one by one, and figure out if anything broke overnight.
+
+In environments with multiple clusters across different locations, this is slow and easy to miss things. Alerts come in separate emails per cluster, so there's no single place to see the full picture.
+
+I built this script to fix that.
 
 ---
 
-## The Problem
+## What it does
 
-In enterprise environments running multiple Nutanix clusters, L1 monitoring teams start every shift by manually logging into each Prism Central instance — checking alerts, DR status, and resource thresholds one by one.
+Reads health data from multiple Nutanix clusters and generates one HTML report with everything in it:
 
-With 5-10 clusters across multiple datacenters, this takes 30-45 minutes of repetitive, error-prone work before the team can even begin responding to issues.
+- All critical alerts across every cluster
+- All warning alerts
+- DR status per cluster — OK or Rebuilding
+- Any host where CPU or memory is above threshold
 
-Nutanix does send alert emails — but each cluster sends them separately. There is no single consolidated view unless you are logged into Prism Central.
+Open the report, 30 seconds, you know exactly what needs action today.
 
----
-
-## The Solution
-
-A PowerShell script that pulls health data across all Nutanix clusters and generates a single, consolidated HTML report — covering every critical alert, warning, DR status, and resource breach in one place.
-
-The L1 team opens one report. In 30 seconds they know exactly what needs attention across the entire infrastructure.
-
-![Sample Report Output](docs/sample-report.png)
+![Report Output](docs/sample-report.png)
 
 ---
 
-## What the Report Shows
+## Why DR Status matters
 
-| Section | What it tells you |
-|---|---|
-| Critical Alerts | All P1 alerts across every cluster and host — with impact and resolution steps |
-| Warning Alerts | All P2 alerts that need monitoring before they escalate |
-| DR Status | Whether each cluster can survive a node failure right now |
-| CPU & Memory Breaches | Every host exceeding threshold — flagged in red automatically |
+When Nutanix shows **Rebuilding** — it means a disk or node recently failed and the cluster is re-protecting your data automatically. Nutanix handles it on its own, but it still needs to be tracked. If another failure happens during rebuild, you have a problem.
 
-**Thresholds:** CPU > 85% / Memory > 80% (configurable in script)
+This is something most people miss when they skim through Prism quickly.
 
 ---
 
-## Why This Matters in Production
-
-- **DR Status = Rebuilding** means the cluster recently had a disk or node failure and is currently re-protecting data. This needs immediate attention even though Nutanix handles it automatically.
-- **Critical alerts** like CVM RAM high or disk failure indicate hardware issues that Nutanix Support needs to be engaged on.
-- **License expiry warnings** are easy to miss in daily operations — a missed license renewal can restrict cluster features overnight.
-
----
-
-## How It Works
-
-```
-mock-data.json          (or live Prism Central API)
-       ↓
-Get-NutanixReport.ps1   reads data, applies thresholds
-       ↓
-NutanixAlertReport.html opens automatically in browser
-```
-
-Currently uses mock data that mirrors the exact JSON structure returned by the Nutanix Prism Central REST API v3. Switching to live data requires adding API credentials and replacing the JSON read with an `Invoke-RestMethod` call to your Prism Central endpoint.
-
----
-
-## Quick Start
+## Running it
 
 ```powershell
-# Clone the repo
 git clone https://github.com/yadavlokesh1/nutanix-multi-cluster-alert-consolidator.git
 cd nutanix-multi-cluster-alert-consolidator
-
-# Run the script
 .\Get-NutanixReport.ps1
 ```
 
-Report generates and opens automatically in your default browser.
+No installs. No modules. Just PowerShell — which is already on every Windows machine.
 
-**Requirements:**
-- Windows PowerShell 5.1+ (built into Windows — no installs needed)
-- No external modules or dependencies
+Report opens automatically in your browser when done.
 
 ---
 
-## Connecting to Live Prism Central
+## Thresholds
 
-To use against a real environment, replace the mock data section in the script with:
+| Metric | Default Threshold |
+|---|---|
+| CPU Usage | Above 85% = flagged |
+| Memory Usage | Above 80% = flagged |
 
-```powershell
-$Headers = @{
-    Authorization = "Basic " + [Convert]::ToBase64String(
-        [Text.Encoding]::ASCII.GetBytes("${Username}:${Password}"))
-    "Content-Type" = "application/json"
-}
-$Data = Invoke-RestMethod -Uri "https://<PrismCentralIP>:9440/api/nutanix/v3/clusters/list" `
-        -Method POST -Headers $Headers -Body '{"kind":"cluster"}' -SkipCertificateCheck
-```
+Both are configurable at the top of the script.
 
 ---
 
-## Project Structure
+## Currently uses mock data
+
+The script runs against a `mock-data.json` file that mirrors the exact structure of Nutanix Prism Central REST API responses. This means you can test and see the report without needing access to a real cluster.
+
+To connect to a live Prism Central, replace the JSON read with an API call to your Prism Central endpoint on port 9440.
+
+---
+
+## Files
 
 ```
-nutanix-multi-cluster-alert-consolidator/
-├── Get-NutanixReport.ps1     # Main script
-├── mock-data.json            # Sample data matching Prism Central API response
-├── sample-report.html        # Example HTML output
+├── Get-NutanixReport.ps1   — main script
+├── mock-data.json          — sample data
+├── sample-report.html      — example output
 └── docs/
-    └── sample-report.png     # Screenshot of report output
+    └── sample-report.png   — screenshot
 ```
 
 ---
 
-## Background
+## Requirements
 
-Built from hands-on experience managing Nutanix HCI infrastructure in enterprise environments. The alert consolidation gap is real — most teams solve it with manual checks. This script solves it with 200 lines of PowerShell and zero additional infrastructure.
+- Windows PowerShell 5.1 or later
+- Network access to Prism Central on port 9440 (for live use)
+
+---
+
+Author
+Lokesh Yadav — Infrastructure Specialist | Windows Server · VMware · Nutanix · Azure · AWS
